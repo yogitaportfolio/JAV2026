@@ -5,6 +5,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { deleteSubmitForm, getSubmitForm } from '../../helpers/forms_helper'
 import showToast from "../../helpers/show_toast"
 import { DataGrid } from '@mui/x-data-grid'
+import { useNavigate } from "react-router-dom"
 import Swal from 'sweetalert2'
 import exportFromJSON from 'export-from-json'
 import PatientModal from './PatientModal'
@@ -16,6 +17,7 @@ const PatientList = (props) => {
     document.title = 'Patient Management'
     const componentRef = useRef()
     const role = localStorage.getItem("role")
+    const navigate = useNavigate()
     const [loading, setLoading] = useState(false)
     const [allData, setAllData] = useState([])
     const [patientModal, setPatientModal] = useState(false)
@@ -46,9 +48,7 @@ const PatientList = (props) => {
     }
 
     const handleAddPatient = () => {
-        setModalMode('create')
-        setSelectedPatient(null)
-        setPatientModal(true)
+        navigate("/patients/new")
     }
 
     const handleEditPatient = (patient) => {

@@ -7,17 +7,21 @@ import Pages404 from "../pages/Utility/pages-404";
 import ChangePassword from "../pages/ChangePassword";
 import UserList from "../pages/Users/UserList";
 import PatientList from "../pages/Patients/PatientList";
+import PatientEntry from "../pages/Patients/PatientEntry";
 import UnitList from "../pages/UnitMaster/UnitList";
 import TestMaster from "../pages/Tests/TestMaster";
 import ReportList from "../pages/Reports/ReportList";
 import PrintReportView from "../pages/Reports/PrintReportView";
 import AssignedTests from "../pages/Tests/AssignedTests";
+import ReceiptCreate from "../pages/Ledger/ReceiptCreate";
 
 const authProtectedRoutes = [
   { path: "/dashboard", component: <Dashboard /> },
   { path: "/change_password", component: <ChangePassword /> },
   { path: "/users", component: <UserList /> },
   { path: "/patients", component: <PatientList /> },
+  { path: "/patients/new", component: <PatientEntry /> },
+  { path: "/patients/:id/receipt/new", component: <ReceiptCreate /> },
   { path: "/units", component: <UnitList /> },
   { path: "/tests", component: <TestMaster /> },
   { path: "/all-reports", component: <ReportList /> },

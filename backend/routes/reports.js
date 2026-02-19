@@ -52,9 +52,13 @@ router.post("/assign_tests", auth, async (req, res) => {
 
 router.post("/getall", auth, async (req, res) => {
   try {
-    const { from_date, to_date } = req.body || {};
+    const { from_date, to_date, patient_id } = req.body || {};
     const dateFilter = buildDateRange(from_date, to_date);
-    const reports = await Report.find(dateFilter)
+    const filter = { ...dateFilter };
+    if (patient_id) {
+      filter.patient_id = patient_id;
+    }
+    const reports = await Report.find(filter)
       .populate("patient_id")
       .populate("wife_tests")
       .populate("husband_tests")
@@ -73,11 +77,14 @@ router.post("/getall", auth, async (req, res) => {
 
 router.post("/getBy_status", auth, async (req, res) => {
   try {
-    const { from_date, to_date, status } = req.body || {};
+    const { from_date, to_date, status, patient_id } = req.body || {};
     const dateFilter = buildDateRange(from_date, to_date);
     const filter = { ...dateFilter };
     if (Array.isArray(status) && status.length > 0) {
       filter.status = { $in: status };
+    }
+    if (patient_id) {
+      filter.patient_id = patient_id;
     }
 
     const reports = await Report.find(filter)

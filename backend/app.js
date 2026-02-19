@@ -29,6 +29,7 @@ const testsRouter = require("./routes/tests");
 const unitsRouter = require("./routes/units");
 const patientsRouter = require("./routes/patients");
 const reportsRouter = require("./routes/reports");
+const ledgerRouter = require("./routes/Ledger");
 
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
@@ -48,6 +49,7 @@ app.use("/tests", testsRouter);
 app.use("/units", unitsRouter);
 app.use("/patients", patientsRouter);
 app.use("/reports", reportsRouter);
+app.use("/", ledgerRouter);
 
 const PORT = process.env.PORT || 3000;
 

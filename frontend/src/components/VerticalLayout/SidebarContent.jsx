@@ -183,14 +183,12 @@ const SidebarContent = (props) => {
                   </Link>
                   <ul className="sub-menu">
                     <li>
-                      <Link to="/reports/day-wise">{props.t("Day-wise Report")}</Link>
+                      <Link to="/reports/day-wise">{props.t("Date-wise Report")}</Link>
                     </li>
                     <li>
                       <Link to="/reports/patient-history">{props.t("Patient History")}</Link>
                     </li>
-                    <li>
-                      <Link to="/reports/tenure-wise">{props.t("Tenure wise Report")}</Link>
-                    </li>
+                   
                   </ul>
                 </li>
               </>

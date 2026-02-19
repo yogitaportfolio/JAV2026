@@ -1,9 +1,9 @@
 // routes/ledger.js
-import express from "express";
-import mongoose from "mongoose";
-import Patient from "../models/Patient.js";
-import LedgerTxn from "../models/LedgerTxn.js";
-import { calcChargesTotal } from "../utils/Ledgers.js";
+const express = require("express");
+const mongoose = require("mongoose");
+const Patient = require("../models/Patient");
+const LedgerTxn = require("../models/LedgerTxn");
+const { calcChargesTotal } = require("../utils/Ledgers");
 
 const router = express.Router();
 
@@ -115,4 +115,4 @@ router.get("/receipts/:receiptNo", async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { Container, Row, Col, Card, CardBody, CardTitle, CardSubtitle, Button, Form, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter, Input } from "reactstrap"
-import { postSubmitForm, deleteSubmitForm } from '../../helpers/forms_helper'
+import { postSubmitForm, deleteSubmitForm, getSubmitForm } from '../../helpers/forms_helper'
 import showToast from "../../helpers/show_toast"
 import { DataGrid } from '@mui/x-data-grid'
 import preloader from "../../helpers/preloader"
@@ -37,25 +37,84 @@ const ReportList = () => {
     const [selectedAssignment, setSelectedAssignment] = useState(null)
     const [fromDate, setFromDate] = useState(moment().format("YYYY-MM-DD"));
     const [toDate, setToDate] = useState(moment().format("YYYY-MM-DD"));
+    const [patients, setPatients] = useState([])
+    const [selectedPatientId, setSelectedPatientId] = useState("")
     const [sortModel, setSortModel] = useState([])
+    const isPatientHistory = location.pathname === '/reports/patient-history'
+
+    const normalizeDateValue = (value) => {
+        if (!value) return ""
+        const raw = String(value).trim()
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+        const parsed = moment(raw, ["YYYY-MM-DD", "DD-MM-YYYY", "MM-DD-YYYY"], true)
+        return parsed.isValid() ? parsed.format("YYYY-MM-DD") : ""
+    }
 
     useEffect(() => {
-        fetch_data()
-    }, [])
+        if (!isPatientHistory) {
+            fetch_data()
+        }
+    }, [isPatientHistory])
+
+    useEffect(() => {
+        if (isPatientHistory) {
+            setFromDate("")
+            setToDate("")
+            fetchPatients()
+        } else {
+            setFromDate(moment().format("YYYY-MM-DD"))
+            setToDate(moment().format("YYYY-MM-DD"))
+            setSelectedPatientId("")
+        }
+    }, [isPatientHistory])
+
+    useEffect(() => {
+        if (isPatientHistory && selectedPatientId) {
+            fetch_data()
+        }
+    }, [isPatientHistory, selectedPatientId])
+
+    const fetchPatients = async () => {
+        try {
+            preloader(true)
+            const url = import.meta.env.VITE_APP_BASEURL + "patients/getall"
+            const response = await getSubmitForm(url, {})
+            if (response && response.status === 1) {
+                setPatients(response.data || [])
+            } else {
+                showToast(response?.message || "Failed to fetch patients", "error")
+            }
+        } catch (err) {
+            console.log(err)
+            showToast("Error fetching patients", "error")
+        } finally {
+            preloader(false)
+        }
+    }
 
     const fetch_data = async () => {
         try {
             setLoading(true)
             preloader(true)
-            const payload = {
-                from_date: moment(fromDate).format('YYYY-MM-DD'),
-                to_date: moment(toDate).format('YYYY-MM-DD')
+            if (isPatientHistory && !selectedPatientId) {
+                showToast("Select a patient to view history", "warning")
+                setAllData([])
+                setLoading(false)
+                preloader(false)
+                return
             }
+            const payload = {}
+            const normalizedFrom = normalizeDateValue(fromDate)
+            const normalizedTo = normalizeDateValue(toDate)
+            if (normalizedFrom) payload.from_date = normalizedFrom
+            if (normalizedTo) payload.to_date = normalizedTo
+            if (isPatientHistory && selectedPatientId) payload.patient_id = selectedPatientId
             let url = import.meta.env.VITE_APP_BASEURL + "reports/getall"
             let response = await postSubmitForm(url, payload)
             if (response && response.status === 1) {
                 setAllData(response.data || [])
             } else {
+                setAllData([])
                 showToast(response.message || "Failed to fetch reports", "error")
             }
         } catch (err) {
@@ -269,6 +328,9 @@ const ReportList = () => {
     }
 
     const handleExport = () => {
+        const rangeLabel = (fromDate && toDate)
+            ? `${moment(fromDate).format('DD-MM-YYYY')}_to_${moment(toDate).format('DD-MM-YYYY')}`
+            : 'All_Dates'
         const exportData = allData.map((item, index) => ({
             'S.No': index + 1,
             'Date': moment(item.createdAt).format('DD-MM-YYYY'),
@@ -281,7 +343,7 @@ const ReportList = () => {
         }))
         exportFromJSON({
             data: exportData,
-            fileName: `${reportMeta.exportTitle}_${moment(fromDate).format('DD-MM-YYYY')}_to_${moment(toDate).format('DD-MM-YYYY')}`,
+            fileName: `${reportMeta.exportTitle}_${rangeLabel}`,
             exportType: exportFromJSON.types.xls
         })
         showToast('Data exported successfully', 'success')
@@ -303,6 +365,27 @@ const ReportList = () => {
 
                                     <Form onSubmit={(e) => { e.preventDefault(); fetch_data(); }}>
                                         <div className="d-flex gap-2 flex-wrap align-items-center">
+                                            {isPatientHistory && (
+                                                <FormGroup className="mb-0 d-flex align-items-center gap-2">
+                                                    <Label className="mb-0 text-nowrap">Patient</Label>
+                                                    <Input
+                                                        type="select"
+                                                        bsSize="sm"
+                                                        value={selectedPatientId}
+                                                        onChange={(e) => setSelectedPatientId(e.target.value)}
+                                                        style={{ width: '220px' }}
+                                                    >
+                                                        <option value="">Select Patient</option>
+                                                        {patients.map((p) => (
+                                                            <option key={p._id} value={p._id}>
+                                                                {(p.registration_no ? `${p.registration_no} - ` : '')}
+                                                                {p.wife?.name || p.name || 'Patient'}
+                                                                {p.husband?.name ? ` / ${p.husband?.name}` : ''}
+                                                            </option>
+                                                        ))}
+                                                    </Input>
+                                                </FormGroup>
+                                            )}
                                             <FormGroup className="mb-0 d-flex align-items-center gap-2">
                                                 <Label className="mb-0 text-nowrap">From</Label>
                                                 <Input
@@ -319,7 +402,7 @@ const ReportList = () => {
                                                     type="date"
                                                     bsSize="sm"
                                                     value={toDate}
-                                                    min={fromDate}
+                                                    min={fromDate || undefined}
                                                     onChange={(e) => setToDate(e.target.value)}
                                                     style={{ width: '130px' }}
                                                 />

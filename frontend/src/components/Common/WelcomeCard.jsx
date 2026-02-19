@@ -30,9 +30,9 @@ const WelcomeCard = () => {
                     <img src={logo} alt="logo" style={{ width: "50px", height: "50px", objectFit: "contain" }} />
                 </div>
                 <div className="overflow-hidden">
-                    <h4 className="fw-bold  text-dark text-truncate">Welcome !</h4>
+                    <h4 className="fw-bold  text-dark text-truncate">Welcome! {user.role}</h4>
                     {/* <h6 className="text-dark mb-1 text-truncate">{user.name}</h6> */}
-                    <h6 className="text-dark mb-1 text-truncate">{user.role}</h6>
+                  {/* <h6 className="text-dark mb-1 text-truncate">{user.role}</h6> */}
                     <Badge pill color="light" className="px-2 py-1 bg-soft-info text-info" style={{ fontSize: '0.75rem' }}>
                         {moment().format('dddd, Do MMM')}
                     </Badge>

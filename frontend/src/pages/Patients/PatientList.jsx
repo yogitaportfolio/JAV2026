@@ -1,5 +1,5 @@
 import { withTranslation } from "react-i18next"
-import { Container, Row, Col, Card, CardBody, CardTitle, CardSubtitle, Spinner, Button, Badge } from "reactstrap"
+import { Container, Row, Col, Card, CardBody, CardTitle, CardSubtitle, Spinner, Button, Badge, Modal, ModalHeader, ModalBody } from "reactstrap"
 import PropTypes from "prop-types"
 import React, { useEffect, useState, useRef } from 'react'
 import { deleteSubmitForm, getSubmitForm } from '../../helpers/forms_helper'
@@ -24,6 +24,10 @@ const PatientList = (props) => {
     const [selectedPatient, setSelectedPatient] = useState(null)
     const [modalMode, setModalMode] = useState('create')
     const [sortModel, setSortModel] = useState([])
+    const [historyModal, setHistoryModal] = useState(false)
+    const [historyLoading, setHistoryLoading] = useState(false)
+    const [historyPatient, setHistoryPatient] = useState(null)
+    const [historyTxns, setHistoryTxns] = useState([])
 
     useEffect(() => {
         fetch_data()
@@ -84,6 +88,27 @@ const PatientList = (props) => {
                 console.log(err)
                 showToast('Error deleting patient', 'error')
             }
+        }
+    }
+
+    const handleHistory = async (patient) => {
+        try {
+            setHistoryPatient(patient)
+            setHistoryLoading(true)
+            setHistoryTxns([])
+            setHistoryModal(true)
+            const url = import.meta.env.VITE_APP_BASEURL + `patients/${patient._id}/ledger`
+            const response = await getSubmitForm(url, {})
+            if (response && response.status === 1) {
+                setHistoryTxns(response.data?.txns || [])
+            } else {
+                showToast(response?.message || "Failed to fetch history", "error")
+            }
+        } catch (err) {
+            console.log(err)
+            showToast("Error fetching history", "error")
+        } finally {
+            setHistoryLoading(false)
         }
     }
 
@@ -260,6 +285,12 @@ const PatientList = (props) => {
                             onClick={() => handleEditPatient(params.row)}
                             title="Edit Patient"
                         ></i>
+                        {params.row.has_procedure_history && (
+                            <i className="bx bx-history text-info cursor-pointer"
+                                onClick={() => handleHistory(params.row)}
+                                title="Previous Procedures"
+                            ></i>
+                        )}
                         {role === "admin" && (
                             <i className="bx bxs-trash text-danger cursor-pointer"
                                 onClick={() => handleDeletePatient(params.row._id)}
@@ -381,6 +412,54 @@ const PatientList = (props) => {
                 refreshData={fetch_data}
                 patient={selectedPatientForTest}
             />
+
+            <Modal isOpen={historyModal} toggle={() => setHistoryModal(!historyModal)} size="lg">
+                <ModalHeader toggle={() => setHistoryModal(!historyModal)}>
+                    Previous Procedures - {historyPatient?.wife?.name || '-'} / {historyPatient?.husband?.name || '-'}
+                </ModalHeader>
+                <ModalBody>
+                    {historyLoading ? (
+                        <div className="text-center py-4">
+                            <Spinner />
+                        </div>
+                    ) : historyTxns.length === 0 ? (
+                        <div className="text-center text-muted py-4">No previous procedures found.</div>
+                    ) : (
+                        <div className="table-responsive">
+                            <table className="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Receipt No</th>
+                                        <th>Date</th>
+                                        <th>Procedures</th>
+                                        <th className="text-end">Total</th>
+                                        <th className="text-end">Paid</th>
+                                        <th className="text-end">Closing</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {historyTxns.map((txn) => (
+                                        <tr key={txn._id}>
+                                            <td>{txn.receiptNo || '-'}</td>
+                                            <td>{txn.createdAt ? new Date(txn.createdAt).toLocaleString() : '-'}</td>
+                                            <td>
+                                                {(txn.charges || []).map((c, idx) => (
+                                                    <div key={`${txn._id}-c-${idx}`}>
+                                                        {c.serviceName || 'Procedure'} x{c.qty || 1}
+                                                    </div>
+                                                ))}
+                                            </td>
+                                            <td className="text-end">{Number(txn.chargesTotal || 0).toFixed(2)}</td>
+                                            <td className="text-end">{Number(txn.payment || 0).toFixed(2)}</td>
+                                            <td className="text-end">{Number(txn.closingBalance || 0).toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </ModalBody>
+            </Modal>
         </>
     )
 }

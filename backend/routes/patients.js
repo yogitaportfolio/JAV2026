@@ -1,5 +1,6 @@
 const express = require("express");
 const Patient = require("../models/Patient");
+const LedgerTxn = require("../models/LedgerTxn");
 const auth = require("../middleware/auth");
 const router = express.Router();
 
@@ -10,10 +11,24 @@ router.get("/getall", auth, async (req, res) => {
       .populate("husband_tests")
       .sort({ createdAt: -1 })
       .lean();
+
+    const patientIds = (patients || []).map((p) => p._id).filter(Boolean);
+    let ledgerPatientIds = [];
+    if (patientIds.length > 0) {
+      ledgerPatientIds = await LedgerTxn.distinct("patientId", {
+        patientId: { $in: patientIds },
+      });
+    }
+    const ledgerSet = new Set((ledgerPatientIds || []).map((id) => String(id)));
+    const dataWithHistory = (patients || []).map((p) => ({
+      ...p,
+      has_procedure_history: ledgerSet.has(String(p._id)),
+    }));
+
     return res.send({
       status: 1,
       message: "Query executed successfully.",
-      data: patients || [],
+      data: dataWithHistory,
     });
   } catch (error) {
     return res.send({ status: 0, message: "Query execution error.", data: "" });

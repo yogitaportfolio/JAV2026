@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Form, FormGroup, Label, Input, FormFeedback, Row, Col } from 'reactstrap'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
@@ -8,6 +8,8 @@ import PropTypes from 'prop-types'
 import { useSelector, useDispatch } from 'react-redux'
 import { fetchTests } from '../../store/tests/actions'
 import preventValueChangeOnScroll from '../../helpers/PreventValueOnScroll'
+import OPDReceipt from '../../components/Reports/OPDReceipt'
+import moment from 'moment'
 
 const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
     const dispatch = useDispatch()
@@ -19,6 +21,8 @@ const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
     const [packageEditingIndex, setPackageEditingIndex] = useState(null)
     const [packageForm, setPackageForm] = useState({ procedureId: '', amount: '' })
     const [packageError, setPackageError] = useState('')
+    const [printReceipt, setPrintReceipt] = useState(null)
+    const originalPackagesRef = useRef([])
 
     // Fetch tests from Redux store when modal opens
     useEffect(() => {
@@ -129,7 +133,73 @@ const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
                 }
 
                 if (response && response.status === 1) {
-                    showToast(response.message || `Patient ${mode === 'create' ? 'created' : 'updated'} successfully`, 'success')
+                    const updatedPatient = response.data || patient
+                    let shouldPrint = false
+
+                    if (mode === 'edit') {
+                        const getPkgId = (pkg) => String(pkg?.procedure_id || pkg?.procedure?._id || pkg?.procedureId || '')
+                        const prevIds = new Set(
+                            (originalPackagesRef.current || []).map((pkg) => getPkgId(pkg)).filter(Boolean)
+                        )
+                        const addedPackages = (values.packages || []).filter((pkg) => {
+                            const id = getPkgId(pkg)
+                            return id && !prevIds.has(id)
+                        })
+                        const paymentOnly = Number(values.charges_paid || 0) > 0
+
+                        if (addedPackages.length > 0 || paymentOnly) {
+                            shouldPrint = true
+                            const charges = addedPackages.map((pkg) => ({
+                                serviceId: pkg.procedure_id || pkg.procedure?._id || pkg.procedureId || null,
+                                serviceName: pkg.procedure_name || pkg.procedure?.name || 'Procedure',
+                                qty: 1,
+                                unitPrice: Number(pkg.amount || 0),
+                                amount: Number(pkg.amount || 0),
+                            }))
+
+                            try {
+                                const ledgerUrl = import.meta.env.VITE_APP_BASEURL + `patients/${updatedPatient._id}/txns`
+                                const ledgerPayload = {
+                                    charges,
+                                    payment: Number(values.charges_paid || 0),
+                                    note: values.remark || '',
+                                }
+                                const ledgerRes = await postSubmitForm(ledgerUrl, ledgerPayload)
+                                if (ledgerRes && ledgerRes.status === 1) {
+                                    const authUser = JSON.parse(localStorage.getItem("authUser") || "{}")
+                                    const receiptCharges = charges.length > 0
+                                        ? charges.map((c) => ({ name: c.serviceName, amount: c.amount }))
+                                        : [{ name: "Payment Received", amount: Number(values.charges_paid || 0) }]
+                                    const receiptPayload = {
+                                        receiptNo: ledgerRes.data?.receiptNo || updatedPatient.registration_no || updatedPatient._id || '',
+                                        jhdNo: '',
+                                        patientName: `${updatedPatient.wife?.name || ''} / ${updatedPatient.husband?.name || ''}`.trim(),
+                                        consultantName: '',
+                                        dateTime: moment().format("DD/MMM/YYYY  HH:mm"),
+                                        opdNo: updatedPatient.registration_no || '',
+                                        ageSex: `W:${updatedPatient.wife?.age || "-"} H:${updatedPatient.husband?.age || "-"}`,
+                                        validUpto: '',
+                                        serialNo: '',
+                                        charges: receiptCharges,
+                                        paymentMode: '',
+                                        preparedBy: authUser?.username || authUser?.name || authUser?.role || '',
+                                        printedOn: moment().format("DD/MMM/YYYY  HH:mm"),
+                                        authorizedSignatoryText: "Authorized Signatory",
+                                    }
+                                    setPrintReceipt(receiptPayload)
+                                } else {
+                                    showToast(ledgerRes?.message || "Failed to create receipt", "error")
+                                }
+                            } catch (err) {
+                                showToast("Error creating receipt", "error")
+                            }
+                        }
+                    }
+
+                    if (!shouldPrint) {
+                        showToast(response.message || `Patient ${mode === 'create' ? 'created' : 'updated'} successfully`, 'success')
+                    }
+
                     resetForm()
                     toggle()
                     refreshData()
@@ -149,6 +219,7 @@ const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
     useEffect(() => {
         if (isOpen) {
             if (mode === 'edit' && patient) {
+                originalPackagesRef.current = patient.packages || []
                 const wifeTests = (patient.wife_tests || []).map(test => test._id || test)
                 const husbandTests = (patient.husband_tests || []).map(test => test._id || test)
                 formik.setValues({
@@ -169,6 +240,19 @@ const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
             }
         }
     }, [isOpen, mode, patient])
+
+    useEffect(() => {
+        if (!printReceipt) return
+        const handleAfterPrint = () => setPrintReceipt(null)
+        window.addEventListener("afterprint", handleAfterPrint)
+        const timeout = setTimeout(() => {
+            window.print()
+        }, 300)
+        return () => {
+            clearTimeout(timeout)
+            window.removeEventListener("afterprint", handleAfterPrint)
+        }
+    }, [printReceipt])
 
     const handleClose = () => {
         formik.resetForm()
@@ -253,7 +337,8 @@ const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
     
 
     return (
-        <Modal isOpen={isOpen} toggle={handleClose} size="lg">
+        <>
+        <Modal isOpen={isOpen} toggle={handleClose} size="lg" className="d-print-none">
             <ModalHeader toggle={handleClose}>
                 {mode === 'create' ? 'Add New Patient' : 'Edit Patient'}
             </ModalHeader>
@@ -567,7 +652,7 @@ const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
                 </ModalFooter>
             </Form>
 
-            <Modal isOpen={packageModalOpen} toggle={() => setPackageModalOpen(false)} size="md">
+            <Modal isOpen={packageModalOpen} toggle={() => setPackageModalOpen(false)} size="md" className="d-print-none">
                 <ModalHeader toggle={() => setPackageModalOpen(false)}>
                     {packageEditingIndex !== null ? 'Edit Package' : 'Add Package'}
                 </ModalHeader>
@@ -615,6 +700,12 @@ const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
                 </ModalFooter>
             </Modal>
         </Modal>
+        {printReceipt && (
+            <div className="d-none d-print-block">
+                <OPDReceipt receipt={printReceipt} />
+            </div>
+        )}
+        </>
     )
 }
 

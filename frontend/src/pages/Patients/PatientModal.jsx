@@ -172,11 +172,11 @@ const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
                                         : [{ name: "Payment Received", amount: Number(values.charges_paid || 0) }]
                                     const receiptPayload = {
                                         receiptNo: ledgerRes.data?.receiptNo || updatedPatient.registration_no || updatedPatient._id || '',
+                                        patientId: updatedPatient.registration_no || updatedPatient._id || '',
                                         jhdNo: '',
                                         patientName: `${updatedPatient.wife?.name || ''} / ${updatedPatient.husband?.name || ''}`.trim(),
                                         consultantName: '',
                                         dateTime: moment().format("DD/MMM/YYYY  HH:mm"),
-                                        opdNo: updatedPatient.registration_no || '',
                                         ageSex: `W:${updatedPatient.wife?.age || "-"} H:${updatedPatient.husband?.age || "-"}`,
                                         validUpto: '',
                                         serialNo: '',

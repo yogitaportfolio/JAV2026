@@ -112,11 +112,11 @@ const PatientEntry = () => {
           const authUser = JSON.parse(localStorage.getItem("authUser") || "{}");
           const receiptPayload = {
             receiptNo: patientData.registration_no || patientData._id || "",
+            patientId: patientData.registration_no || patientData._id || "",
             jhdNo: "",
             patientName: `${patientData.wife?.name || ""} / ${patientData.husband?.name || ""}`.trim(),
             consultantName: "",
             dateTime: moment().format("DD/MMM/YYYY  HH:mm"),
-            opdNo: patientData.registration_no || "",
             ageSex: `W:${patientData.wife?.age || "-"} H:${patientData.husband?.age || "-"}`,
             validUpto: "",
             serialNo: "",

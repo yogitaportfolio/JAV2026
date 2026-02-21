@@ -9,25 +9,15 @@ export default function OPDReceipt({
     email: "info@javitrihospital.co",
   },
   receipt = {
-    receiptNo: "25122",
-    jhdNo: "169058",
+    receiptNo: "JV01-20260221-001",
+    patientId: "JV01-20260221-001",
     patientName: "Baby KRISHIKA",
-    consultantName: "Dr. sumit Sehgal",
-
     dateTime: "12/Feb/2026  13:29",
-    opdNo: "25232",
-    ageSex: "11/Month/Female",
-    validUpto: "14/Feb/2026",
-    serialNo: "6",
+    ageSex: "W:30 H:34",
 
     charges: [
       { name: "Admission Charges", amount: 400.0 },
     ],
-    paymentMode: "",
-
-    preparedBy: "user5",
-    printedOn: "12/Feb/2026  13:35",
-
     authorizedSignatoryText: "Authorized Signatory",
   },
 }) {
@@ -60,17 +50,13 @@ export default function OPDReceipt({
         <div className="opd-top-grid">
           <div className="opd-col">
             <Row label="Receipt No" value={receipt.receiptNo} />
-            <Row label="J H D No" value={receipt.jhdNo} />
             <Row label="Patient Name" value={receipt.patientName} />
-            <Row label="Consultant Name" value={receipt.consultantName} />
           </div>
 
           <div className="opd-col">
             <Row label="Date & Time" value={receipt.dateTime} />
-            <Row label="OPD No." value={receipt.opdNo} />
+            <Row label="Patient ID" value={receipt.patientId} />
             <Row label="Age/Sex" value={receipt.ageSex} />
-            <Row label="Valid Upto" value={receipt.validUpto} />
-            <Row label="Serial No" value={receipt.serialNo} />
           </div>
         </div>
 
@@ -102,14 +88,6 @@ export default function OPDReceipt({
         <div className="opd-line" />
 
         <div className="payment-grid">
-          <div className="opd-payment-left">
-            <div className="opd-payment-row">
-              <div className="opd-payment-label">Payment Mode</div>
-              <div className="opd-payment-sep">:</div>
-              <div className="opd-payment-val">{receipt.paymentMode || "\u00A0"}</div>
-            </div>
-          </div>
-
           <div className="opd-payment-right">
             <div className="opd-payment-totals">
               <div className="opd-payment-row">
@@ -127,12 +105,6 @@ export default function OPDReceipt({
         </div>
 
         <div className="opd-line faint" />
-
-        <div className="opd-footer">
-          <div className="opd-footer-left">Prepared By&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;{receipt.preparedBy}</div>
-          <div className="opd-footer-mid">Printed on&nbsp;&nbsp;{receipt.printedOn}</div>
-          <div className="opd-footer-right">{receipt.authorizedSignatoryText}</div>
-        </div>
       </div>
 
       <div className="opd-actions">
@@ -218,13 +190,9 @@ const css = `
 
 .opd-receipt-wrap .payment-grid{
   display:grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 20px;
   font-size: 13px;
-}
-.opd-receipt-wrap .opd-payment-left{
-  display:flex;
-  align-items:flex-start;
 }
 .opd-receipt-wrap .opd-payment-right{
   display:flex;
@@ -248,16 +216,6 @@ const css = `
   text-align:right;
   font-weight:700;
 }
-
-.opd-receipt-wrap .opd-footer{
-  display:flex;
-  justify-content:space-between;
-  font-size: 12px;
-  margin-top: 10px;
-}
-.opd-receipt-wrap .opd-footer-left{ width: 280px; }
-.opd-receipt-wrap .opd-footer-mid{ flex: 1; text-align:center; }
-.opd-receipt-wrap .opd-footer-right{ width: 220px; text-align:right; }
 
 .opd-receipt-wrap .opd-actions{
   width: 1000px;

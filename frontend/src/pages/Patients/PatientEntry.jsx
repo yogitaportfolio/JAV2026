@@ -109,9 +109,34 @@ const PatientEntry = () => {
         const response = await postSubmitForm(url, payload);
         if (response && response.status === 1) {
           const patientData = response?.data || {};
+          let receiptNo =
+            response?.receiptNo || patientData.registration_no || patientData._id || "";
+
+          if (!response?.ledgerTxnId && !response?.receiptNo) {
+            try {
+              const seedUrl =
+                import.meta.env.VITE_APP_BASEURL + `patients/${patientData._id}/ledger/seed`;
+              const seedRes = await postSubmitForm(seedUrl, {});
+              if (seedRes && seedRes.status === 1) {
+                receiptNo = seedRes?.data?.receiptNo || seedRes?.receiptNo || receiptNo;
+              } else {
+                showToast(seedRes?.message || "Failed to create ledger history", "error");
+              }
+            } catch (err) {
+              showToast("Error creating ledger history", "error");
+            }
+          }
           const authUser = JSON.parse(localStorage.getItem("authUser") || "{}");
+          const openingBalance = 0;
+          const chargesTotal = (values.packages || []).reduce(
+            (sum, pkg) => sum + Number(pkg.amount || 0),
+            0
+          );
+          const total = Number((openingBalance + chargesTotal).toFixed(2));
+          const paid = Number(values.charges_paid || 0);
+          const closing = Number((openingBalance + chargesTotal - paid).toFixed(2));
           const receiptPayload = {
-            receiptNo: patientData.registration_no || patientData._id || "",
+            receiptNo,
             patientId: patientData.registration_no || patientData._id || "",
             jhdNo: "",
             patientName: `${patientData.wife?.name || ""} / ${patientData.husband?.name || ""}`.trim(),
@@ -124,6 +149,11 @@ const PatientEntry = () => {
               name: pkg.procedure_name || "Procedure",
               amount: Number(pkg.amount || 0),
             })),
+            openingBalance,
+            chargesTotal,
+            total,
+            paid,
+            closing,
             paymentMode: "",
             preparedBy: authUser?.username || authUser?.name || authUser?.role || "",
             printedOn: moment().format("DD/MMM/YYYY  HH:mm"),
@@ -181,12 +211,18 @@ const PatientEntry = () => {
     formik.setFieldValue("packages", nextPackages);
   };
 
+  const toNumber = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  };
   const packagesTotal = (formik.values.packages || []).reduce(
-    (sum, item) => sum + Number(item.amount || 0),
+    (sum, item) => sum + toNumber(item.amount),
     0
   );
-  const paidToday = Number(formik.values.charges_paid || 0);
-  const balanceDue = Number((packagesTotal - paidToday).toFixed(2));
+  const pendingPackageAmount = packageForm.procedureId ? toNumber(packageForm.amount) : 0;
+  const chargesTotal = packagesTotal + pendingPackageAmount;
+  const paidToday = toNumber(formik.values.charges_paid);
+  const balanceDue = Number((chargesTotal - paidToday).toFixed(2));
 
   return (
     <>
@@ -498,7 +534,7 @@ const PatientEntry = () => {
                           ))}
                           <tr style={{ background: "#f3f6fb" }}>
                             <td className="fw-semibold text-uppercase small">Charges Total</td>
-                            <td className="fw-bold text-primary">{packagesTotal.toFixed(2)}</td>
+                            <td className="fw-bold text-primary">{chargesTotal.toFixed(2)}</td>
                             <td></td>
                           </tr>
                         </tbody>
@@ -538,7 +574,7 @@ const PatientEntry = () => {
                         <Col md={4}>
                           <FormGroup>
                             <Label className="text-uppercase small text-muted">Charges Total</Label>
-                            <Input type="number" value={packagesTotal.toFixed(2)} disabled />
+                            <Input type="number" value={chargesTotal.toFixed(2)} disabled />
                           </FormGroup>
                         </Col>
                         <Col md={4}>

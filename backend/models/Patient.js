@@ -49,6 +49,11 @@ const patientSchema = mongoose.Schema(
     },
     charges_paid: { type: Number, default: 0 },
     remark: { type: String, trim: true },
+    report_status: { type: String, trim: true },
+    report_remark: { type: String, trim: true },
+    report_pdf_url: { type: String, trim: true },
+    report_assigned_at: { type: Date },
+    report_verified_at: { type: Date },
     is_active: {
       type: Boolean,
       default: true,

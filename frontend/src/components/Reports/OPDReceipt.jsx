@@ -21,8 +21,24 @@ export default function OPDReceipt({
     authorizedSignatoryText: "Authorized Signatory",
   },
 }) {
-  const chargesTotal = receipt.charges.reduce((s, c) => s + Number(c.amount || 0), 0);
   const fmt = (n) => Number(n || 0).toFixed(2);
+  const openingBalance = Number(receipt.openingBalance || 0);
+  const chargesTotal =
+    receipt.chargesTotal !== undefined && receipt.chargesTotal !== null
+      ? Number(receipt.chargesTotal || 0)
+      : receipt.charges.reduce((s, c) => s + Number(c.amount || 0), 0);
+  const total =
+    receipt.total !== undefined && receipt.total !== null
+      ? Number(receipt.total || 0)
+      : Number((openingBalance + chargesTotal).toFixed(2));
+  const paid =
+    receipt.paid !== undefined && receipt.paid !== null
+      ? Number(receipt.paid || 0)
+      : Number(receipt.payment || 0);
+  const closing =
+    receipt.closing !== undefined && receipt.closing !== null
+      ? Number(receipt.closing || 0)
+      : Number((openingBalance + chargesTotal - paid).toFixed(2));
 
   return (
     <div className="opd-receipt-wrap">
@@ -89,17 +105,13 @@ export default function OPDReceipt({
 
         <div className="payment-grid">
           <div className="opd-payment-right">
-            <div className="opd-payment-totals">
-              <div className="opd-payment-row">
-                <div className="opd-payment-label">Gross Total</div>
-                <div className="opd-payment-sep">:</div>
-                <div className="opd-payment-val amt">{fmt(chargesTotal)}</div>
-              </div>
-              <div className="opd-payment-row">
-                <div className="opd-payment-label">Net Amount</div>
-                <div className="opd-payment-sep">:</div>
-                <div className="opd-payment-val amt">{fmt(chargesTotal)}</div>
-              </div>
+            <div className="opd-totals-table">
+              <div className="opd-totals-head">Total</div>
+              <div className="opd-totals-head">Paid</div>
+              <div className="opd-totals-head">Closing</div>
+              <div className="opd-totals-val">{fmt(total)}</div>
+              <div className="opd-totals-val">{fmt(paid)}</div>
+              <div className="opd-totals-val">{fmt(closing)}</div>
             </div>
           </div>
         </div>
@@ -198,23 +210,25 @@ const css = `
   display:flex;
   justify-content:flex-end;
 }
-.opd-receipt-wrap .opd-payment-totals{
-  width: 320px;
-}
-.opd-receipt-wrap .opd-payment-row{
+.opd-receipt-wrap .opd-totals-table{
+  width: 360px;
   display:grid;
-  grid-template-columns: 110px 10px 1fr;
-  padding: 3px 0;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid #000;
 }
-.opd-receipt-wrap .opd-payment-sep{
+.opd-receipt-wrap .opd-totals-head{
+  background: #000;
+  color: #fff;
+  font-weight: 700;
   text-align:center;
+  padding: 6px 4px;
+  font-size: 13px;
 }
-.opd-receipt-wrap .opd-payment-val{
-  text-align:left;
-}
-.opd-receipt-wrap .opd-payment-val.amt{
-  text-align:right;
-  font-weight:700;
+.opd-receipt-wrap .opd-totals-val{
+  text-align:center;
+  padding: 6px 4px;
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .opd-receipt-wrap .opd-actions{

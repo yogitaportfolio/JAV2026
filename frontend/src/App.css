@@ -18,6 +18,109 @@
   margin-top: 4px;
 }
 
+/* Visit history timeline */
+.visit-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 6px 2px;
+}
+
+.visit-item {
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+}
+
+.visit-card {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px 18px;
+  border: 1px solid #eef0f6;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.visit-title {
+  font-weight: 700;
+  color: #6d3ee9;
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.visit-sub {
+  color: #1f2937;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.visit-amounts {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: #4b5563;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.visit-line {
+  position: relative;
+  width: 42px;
+  display: flex;
+  justify-content: center;
+}
+
+.visit-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #cdb8ff;
+  border-radius: 999px;
+}
+
+.visit-dot {
+  width: 16px;
+  height: 16px;
+  background: #a57bff;
+  border: 4px solid #eadfff;
+  border-radius: 50%;
+  margin-top: 16px;
+  z-index: 1;
+}
+
+.visit-date {
+  display: flex;
+  align-items: flex-start;
+}
+
+.visit-date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #8d6bff;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 14px;
+  box-shadow: 0 6px 16px rgba(141, 107, 255, 0.35);
+}
+
+@media (max-width: 768px) {
+  .visit-item {
+    flex-direction: column;
+  }
+  .visit-line {
+    display: none;
+  }
+  .visit-date {
+    align-items: center;
+    justify-content: flex-start;
+  }
+}
+
 .noti-icon .badge {
   position: absolute;
   top: 5px !important;

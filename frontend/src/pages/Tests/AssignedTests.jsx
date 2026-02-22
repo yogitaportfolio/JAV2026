@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { Container, Row, Col, Card, CardBody, CardTitle, CardSubtitle, Button, Form, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter, Input } from "reactstrap"
+import Flatpickr from "react-flatpickr"
+import "flatpickr/dist/themes/material_blue.css"
 import { postSubmitForm, deleteSubmitForm } from '../../helpers/forms_helper'
 import showToast from "../../helpers/show_toast"
 import { DataGrid } from '@mui/x-data-grid'
@@ -183,70 +185,6 @@ const AssignedTests = () => {
             flex: 1,
             minWidth: 100,
             valueGetter: (value) => moment(value).format('DD-MM-YYYY hh:mm')
-        },
-        {
-            field: 'status',
-            headerName: 'Status',
-            width: 120,
-            renderCell: (params) => {
-                let color = "secondary";
-                if (params.value === "In Review") color = "info";
-                if (params.value === "Approved") color = "success";
-                if (params.value === "Rejected") color = "danger";
-                if (params.value === "Closed") color = "dark";
-                return (
-                    <div className="d-flex flex-column align-items-center py-2" style={{ lineHeight: '1.2' }}>
-                        <span className={`badge bg-${color}`}>
-                            {params.value || 'Assigned'}
-                        </span>
-                        {params.row.remark && (
-                            <small
-                                className="text-danger mt-1 text-center"
-                                style={{
-                                    fontSize: '11px',
-                                    cursor: 'pointer',
-                                    textDecoration: 'underline',
-                                    fontWeight: 'bold'
-                                }}
-                                onClick={() => Swal.fire({
-                                    title: 'Advice/Remark',
-                                    html: `<div style="text-align: left; white-space: pre-wrap;">${params.row.remark}</div>`,
-                                    icon: 'info',
-                                    confirmButtonText: 'Close',
-                                    confirmButtonColor: '#3085d6'
-                                })}
-                            >
-                                Advice
-                            </small>
-                        )}
-                    </div>
-                )
-            }
-        },
-        {
-            field: 'action',
-            headerName: 'Action',
-            felx: 0.5,
-            renderCell: (params) => (
-                <div className="d-flex gap-3 mt-1 justify-content-start align-items-center" style={{ fontSize: "20px" }}>
-                    {(params.row.status || "Assigned") !== "Assigned" && (
-                        <img
-                            src={pdf_logo}
-                            alt="PDF"
-                            style={{ cursor: 'pointer', width: '22px', height: '22px' }}
-                            onClick={() => openPrintPopup(params.row)}
-                            title="View Report Preview"
-                        />
-                    )}
-                    {params.row.pdf_url && (params.row.status || "Assigned") !== "Assigned" && (
-                        <i className="bx bxs-file-pdf text-danger"
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => window.open(params.row.pdf_url, '_blank')}
-                            title="View Uploaded PDF"
-                        ></i>
-                    )}
-                </div>
-            )
         }
     ]
 
@@ -263,8 +201,7 @@ const AssignedTests = () => {
             'Patient Name': item.patient_id?.wife?.name || item.patient_id?.name || 'N/A',
             'Husband Name': item.patient_id?.husband?.name || 'N/A',
             'Wife Tests': (item.wife_tests || []).map(t => t.test_code).join(', '),
-            'Husband Tests': (item.husband_tests || []).map(t => t.test_code).join(', '),
-            'Status': item.status || 'Pending'
+            'Husband Tests': (item.husband_tests || []).map(t => t.test_code).join(', ')
         }))
         exportFromJSON({
             data: exportData,
@@ -289,22 +226,27 @@ const AssignedTests = () => {
                                             <div className="d-flex gap-2 flex-wrap align-items-center mt-2">
                                                 <FormGroup className="mb-0 d-flex align-items-center gap-2">
                                                     <Label className="mb-0 text-nowrap">From</Label>
-                                                    <Input
-                                                        type="date"
-                                                        bsSize="sm"
-                                                        value={fromDate}
-                                                        onChange={(e) => setFromDate(e.target.value)}
+                                                    <Flatpickr
+                                                        className="form-control form-control-sm"
+                                                        value={fromDate || ""}
+                                                        options={{
+                                                            dateFormat: "Y-m-d",
+                                                            maxDate: toDate || null
+                                                        }}
+                                                        onChange={(_, dateStr) => setFromDate(dateStr)}
                                                         style={{ width: '130px' }}
                                                     />
                                                 </FormGroup>
                                                 <FormGroup className="mb-0 d-flex align-items-center gap-2">
                                                     <Label className="mb-0 text-nowrap">To</Label>
-                                                    <Input
-                                                        type="date"
-                                                        bsSize="sm"
-                                                        value={toDate}
-                                                        min={fromDate}
-                                                        onChange={(e) => setToDate(e.target.value)}
+                                                    <Flatpickr
+                                                        className="form-control form-control-sm"
+                                                        value={toDate || ""}
+                                                        options={{
+                                                            dateFormat: "Y-m-d",
+                                                            minDate: fromDate || null
+                                                        }}
+                                                        onChange={(_, dateStr) => setToDate(dateStr)}
                                                         style={{ width: '130px' }}
                                                     />
                                                 </FormGroup>

@@ -114,6 +114,10 @@ const LetterHead = ({ data }) => {
         ...husbandPages.map(page => ({ type: 'HUSBAND', tests: page }))
     ];
 
+    if (allPages.length === 0) {
+        allPages.push({ type: 'WIFE', tests: [] });
+    }
+
     useEffect(() => {
         if (data) {
             const wife = data.patient_id?.wife?.name || "";
@@ -175,7 +179,11 @@ const LetterHead = ({ data }) => {
                         </h5>
 
                         {/* Rendering tests for this page */}
-                        {page.tests.map(test => renderTestTable(test))}
+                        {page.tests.length === 0 ? (
+                            <div className="p-3 border text-center">No tests assigned.</div>
+                        ) : (
+                            page.tests.map(test => renderTestTable(test))
+                        )}
 
                         {/* Footer Section */}
                         <footer className="report-footer-section">

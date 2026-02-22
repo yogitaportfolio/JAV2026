@@ -2,7 +2,7 @@ import { withTranslation } from "react-i18next"
 import { Container, Row, Col, Card, CardBody, CardTitle, CardSubtitle, Spinner, Button, Badge, Modal, ModalHeader, ModalBody } from "reactstrap"
 import PropTypes from "prop-types"
 import React, { useEffect, useState, useRef } from 'react'
-import { deleteSubmitForm, getSubmitForm } from '../../helpers/forms_helper'
+import { deleteSubmitForm, getSubmitForm, postSubmitForm } from '../../helpers/forms_helper'
 import showToast from "../../helpers/show_toast"
 import { DataGrid } from '@mui/x-data-grid'
 import { useNavigate } from "react-router-dom"
@@ -100,7 +100,25 @@ const PatientList = (props) => {
             const url = import.meta.env.VITE_APP_BASEURL + `patients/${patient._id}/ledger`
             const response = await getSubmitForm(url, {})
             if (response && response.status === 1) {
-                setHistoryTxns(response.data?.txns || [])
+                const txns = response.data?.txns || []
+                if (txns.length === 0 && (patient.packages || []).length > 0) {
+                    const seedUrl = import.meta.env.VITE_APP_BASEURL + `patients/${patient._id}/ledger/seed`
+                    const seedRes = await postSubmitForm(seedUrl, {})
+                    if (seedRes && seedRes.status === 1) {
+                        const retry = await getSubmitForm(url, {})
+                        if (retry && retry.status === 1) {
+                            setHistoryTxns(retry.data?.txns || [])
+                        } else {
+                            setHistoryTxns(txns)
+                            showToast(retry?.message || "Failed to fetch history after seeding", "error")
+                        }
+                    } else {
+                        setHistoryTxns(txns)
+                        showToast(seedRes?.message || "Failed to seed history", "error")
+                    }
+                } else {
+                    setHistoryTxns(txns)
+                }
             } else {
                 showToast(response?.message || "Failed to fetch history", "error")
             }
@@ -285,12 +303,10 @@ const PatientList = (props) => {
                             onClick={() => handleEditPatient(params.row)}
                             title="Edit Patient"
                         ></i>
-                        {params.row.has_procedure_history && (
-                            <i className="bx bx-history text-info cursor-pointer"
-                                onClick={() => handleHistory(params.row)}
-                                title="Previous Procedures"
-                            ></i>
-                        )}
+                        <i className="bx bx-history text-info cursor-pointer"
+                            onClick={() => handleHistory(params.row)}
+                            title="Previous Procedures"
+                        ></i>
                         {role === "admin" && (
                             <i className="bx bxs-trash text-danger cursor-pointer"
                                 onClick={() => handleDeletePatient(params.row._id)}
@@ -302,6 +318,26 @@ const PatientList = (props) => {
             }
         },
     ]
+
+    const historyRows = (() => {
+        let lastCharges = []
+        return (historyTxns || []).map((txn) => {
+            const charges = Array.isArray(txn.charges) ? txn.charges : []
+            const displayCharges = charges.length > 0 ? charges : lastCharges
+            if (charges.length > 0) {
+                lastCharges = charges
+            }
+            const displayTotal = Number(txn.openingBalance || 0) + Number(txn.chargesTotal || 0)
+            return { txn, displayCharges, displayTotal }
+        })
+    })()
+
+    const formatVisitDate = (value) => {
+        if (!value) return '-'
+        const d = new Date(value)
+        if (isNaN(d.getTime())) return '-'
+        return d.toLocaleDateString()
+    }
 
     return (
         <>
@@ -415,7 +451,7 @@ const PatientList = (props) => {
 
             <Modal isOpen={historyModal} toggle={() => setHistoryModal(!historyModal)} size="lg">
                 <ModalHeader toggle={() => setHistoryModal(!historyModal)}>
-                    Previous Procedures - {historyPatient?.wife?.name || '-'} / {historyPatient?.husband?.name || '-'}
+                    {historyPatient?.wife?.name || '-'}&#39;s - Visit History
                 </ModalHeader>
                 <ModalBody>
                     {historyLoading ? (
@@ -425,37 +461,36 @@ const PatientList = (props) => {
                     ) : historyTxns.length === 0 ? (
                         <div className="text-center text-muted py-4">No previous procedures found.</div>
                     ) : (
-                        <div className="table-responsive">
-                            <table className="table table-sm align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>Receipt No</th>
-                                        <th>Date</th>
-                                        <th>Procedures</th>
-                                        <th className="text-end">Total</th>
-                                        <th className="text-end">Paid</th>
-                                        <th className="text-end">Closing</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {historyTxns.map((txn) => (
-                                        <tr key={txn._id}>
-                                            <td>{txn.receiptNo || '-'}</td>
-                                            <td>{txn.createdAt ? new Date(txn.createdAt).toLocaleString() : '-'}</td>
-                                            <td>
-                                                {(txn.charges || []).map((c, idx) => (
-                                                    <div key={`${txn._id}-c-${idx}`}>
-                                                        {c.serviceName || 'Procedure'} x{c.qty || 1}
-                                                    </div>
-                                                ))}
-                                            </td>
-                                            <td className="text-end">{Number(txn.chargesTotal || 0).toFixed(2)}</td>
-                                            <td className="text-end">{Number(txn.payment || 0).toFixed(2)}</td>
-                                            <td className="text-end">{Number(txn.closingBalance || 0).toFixed(2)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className="visit-timeline">
+                            {historyRows.map(({ txn, displayCharges, displayTotal }) => (
+                                <div className="visit-item" key={txn._id}>
+                                    <div className="visit-card">
+                                        <div className="visit-title">Receipt No: {txn.receiptNo || '-'}</div>
+                                        <div className="visit-sub">
+                                            {displayCharges.length === 0
+                                                ? '-'
+                                                : displayCharges
+                                                    .map((c) => `${c.serviceName || 'Procedure'} x${c.qty || 1}`)
+                                                    .join(', ')
+                                            }
+                                        </div>
+                                        <div className="visit-amounts">
+                                            <span>Total: {Number(displayTotal || 0).toFixed(2)}</span>
+                                            <span>Paid: {Number(txn.payment || 0).toFixed(2)}</span>
+                                            <span>Closing: {Number(txn.closingBalance || 0).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    <div className="visit-line">
+                                        <span className="visit-dot"></span>
+                                    </div>
+                                    <div className="visit-date">
+                                        <span className="visit-date-pill">
+                                            <i className="bx bx-calendar"></i>
+                                            {formatVisitDate(txn.createdAt)}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </ModalBody>

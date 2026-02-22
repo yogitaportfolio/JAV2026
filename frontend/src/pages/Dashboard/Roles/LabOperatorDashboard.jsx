@@ -179,41 +179,7 @@ const LabOperatorDashboard = () => {
       flex: 1,
       minWidth: 100,
       valueGetter: (value) => moment(value).format('DD-MM-YYYY hh:mm')
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 140,
-      renderCell: (params) => {
-        let color = "secondary";
-        if (params.value === "In Review") color = "info";
-        if (params.value === "Approved") color = "success";
-        if (params.value === "Rejected") color = "danger";
-        return (
-          <div className="d-flex flex-column align-items-center py-2" style={{ lineHeight: '1.2' }}>
-            <div className="d-flex align-items-center">
-              <span className={`badge bg-${color} me-2`}>
-                {params.value || 'Assigned'}
-              </span>
-              <span hidden={params.value !== "Approved"}>
-                <img
-                  src={pdf_logo}
-                  alt="PDF"
-                  style={{ cursor: 'pointer', width: '22px', height: '22px' }}
-                  onClick={() => openPrintPopup(params.row)}
-                  title="View Report"
-                />
-              </span>
-            </div>
-            {params.value === "Rejected" && params.row.remark && (
-              <small className="text-danger mt-1 text-center" style={{ fontSize: '10px', maxWidth: '120px', wordBreak: 'break-word' }}>
-                {params.row.remark}
-              </small>
-            )}
-          </div>
-        )
-      }
-    },
+    }
   ];
 
   const handleUploadClick = (test) => {

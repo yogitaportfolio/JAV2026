@@ -166,10 +166,20 @@ const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
                                 }
                                 const ledgerRes = await postSubmitForm(ledgerUrl, ledgerPayload)
                                 if (ledgerRes && ledgerRes.status === 1) {
+                                    const ledger = ledgerRes.data || {}
                                     const authUser = JSON.parse(localStorage.getItem("authUser") || "{}")
                                     const receiptCharges = charges.length > 0
                                         ? charges.map((c) => ({ name: c.serviceName, amount: c.amount }))
                                         : [{ name: "Payment Received", amount: Number(values.charges_paid || 0) }]
+                                    const openingBalance = Number(ledger.openingBalance || 0)
+                                    const chargesTotal = Number(
+                                        ledger.chargesTotal ?? receiptCharges.reduce((s, c) => s + Number(c.amount || 0), 0)
+                                    )
+                                    const total = Number((openingBalance + chargesTotal).toFixed(2))
+                                    const paid = Number(ledger.payment ?? Number(values.charges_paid || 0))
+                                    const closing = Number(
+                                        ledger.closingBalance ?? (openingBalance + chargesTotal - paid)
+                                    )
                                     const receiptPayload = {
                                         receiptNo: ledgerRes.data?.receiptNo || updatedPatient.registration_no || updatedPatient._id || '',
                                         patientId: updatedPatient.registration_no || updatedPatient._id || '',
@@ -181,6 +191,11 @@ const PatientModal = ({ isOpen, toggle, mode, patient, refreshData }) => {
                                         validUpto: '',
                                         serialNo: '',
                                         charges: receiptCharges,
+                                        openingBalance,
+                                        chargesTotal,
+                                        total,
+                                        paid,
+                                        closing,
                                         paymentMode: '',
                                         preparedBy: authUser?.username || authUser?.name || authUser?.role || '',
                                         printedOn: moment().format("DD/MMM/YYYY  HH:mm"),

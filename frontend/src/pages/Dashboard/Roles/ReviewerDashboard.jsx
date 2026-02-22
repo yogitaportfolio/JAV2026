@@ -194,60 +194,11 @@ const ReviewerDashboard = () => {
       )
     },
     {
-      field: 'status',
-      headerName: 'Status',
-      width: 120,
-      renderCell: (params) => {
-        let color = "secondary";
-        if (params.value === "In Review") color = "info";
-        if (params.value === "Approved") color = "success";
-        if (params.value === "Rejected") color = "danger";
-        return (
-          <div className="d-flex flex-column align-items-center py-2" style={{ lineHeight: '1.2' }}>
-            <span className={`badge bg-${color}`}>
-              {params.value || 'Assigned'}
-            </span>
-            {params.value === "Rejected" && params.row.remark && (
-              <small className="text-danger mt-1 text-center" style={{ fontSize: '10px', maxWidth: '100px', wordBreak: 'break-word' }}>
-                {params.row.remark}
-              </small>
-            )}
-          </div>
-        )
-      }
-    },
-    {
       field: 'createdAt',
       headerName: 'Test Time',
       flex: 1,
       minWidth: 100,
       valueGetter: (value) => moment(value).format('DD-MM-YYYY hh:mm')
-    },
-    {
-      field: 'action',
-      headerName: 'Action',
-      width: 120,
-      renderCell: (params) => (
-        <div className="d-flex gap-2 mt-1 justify-content-center align-items-center" style={{ fontSize: "20px" }}>
-          <img
-            src={pdf_logo}
-            alt="PDF"
-            style={{ cursor: 'pointer', width: '22px', height: '22px' }}
-            onClick={() => openPrintPopup(params.row)}
-            title="View Report"
-          />
-          <i className={`bx bx-check-circle ${params.row.status === 'Approved' ? 'text-muted' : 'text-success'}`}
-            style={{ cursor: params.row.status === 'Approved' ? 'default' : 'pointer' }}
-            onClick={() => params.row.status !== 'Approved' && handleStatusUpdate(params.row._id, 'Approved')}
-            title="Approve Report"
-          ></i>
-          <i className={`bx bx-x-circle ${params.row.status === 'Rejected' ? 'text-muted' : 'text-danger'}`}
-            style={{ cursor: params.row.status === 'Rejected' ? 'default' : 'pointer' }}
-            onClick={() => params.row.status !== 'Rejected' && handleStatusUpdate(params.row._id, 'Rejected')}
-            title="Reject Report"
-          ></i>
-        </div>
-      )
     }
   ];
 

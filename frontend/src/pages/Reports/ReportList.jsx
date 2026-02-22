@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react'
-import { Container, Row, Col, Card, CardBody, CardTitle, CardSubtitle, Button, Form, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter, Input } from "reactstrap"
+import { Container, Row, Col, Card, CardBody, CardTitle, CardSubtitle, Button, Form, FormGroup, Label, Modal, ModalHeader, ModalBody, ModalFooter, Input, Spinner } from "reactstrap"
+import Flatpickr from "react-flatpickr"
+import "flatpickr/dist/themes/material_blue.css"
 import { postSubmitForm, deleteSubmitForm, getSubmitForm } from '../../helpers/forms_helper'
 import showToast from "../../helpers/show_toast"
 import { DataGrid } from '@mui/x-data-grid'
@@ -41,6 +43,10 @@ const ReportList = () => {
     const [selectedPatientId, setSelectedPatientId] = useState("")
     const [sortModel, setSortModel] = useState([])
     const isPatientHistory = location.pathname === '/reports/patient-history'
+    const [historyModal, setHistoryModal] = useState(false)
+    const [historyLoading, setHistoryLoading] = useState(false)
+    const [historyPatient, setHistoryPatient] = useState(null)
+    const [historyTxns, setHistoryTxns] = useState([])
 
     const normalizeDateValue = (value) => {
         if (!value) return ""
@@ -58,8 +64,9 @@ const ReportList = () => {
 
     useEffect(() => {
         if (isPatientHistory) {
-            setFromDate("")
-            setToDate("")
+            const today = moment().format("YYYY-MM-DD")
+            setFromDate(today)
+            setToDate(today)
             fetchPatients()
         } else {
             setFromDate(moment().format("YYYY-MM-DD"))
@@ -197,7 +204,47 @@ const ReportList = () => {
         }
     }
 
-    const columns = [
+    const handleHistory = async (patient) => {
+        if (!patient?._id) return
+        try {
+            setHistoryPatient(patient)
+            setHistoryLoading(true)
+            setHistoryTxns([])
+            setHistoryModal(true)
+            const url = import.meta.env.VITE_APP_BASEURL + `patients/${patient._id}/ledger`
+            const response = await getSubmitForm(url, {})
+            if (response && response.status === 1) {
+                const txns = response.data?.txns || []
+                if (txns.length === 0 && (patient.packages || []).length > 0) {
+                    const seedUrl = import.meta.env.VITE_APP_BASEURL + `patients/${patient._id}/ledger/seed`
+                    const seedRes = await postSubmitForm(seedUrl, {})
+                    if (seedRes && seedRes.status === 1) {
+                        const retry = await getSubmitForm(url, {})
+                        if (retry && retry.status === 1) {
+                            setHistoryTxns(retry.data?.txns || [])
+                        } else {
+                            setHistoryTxns(txns)
+                            showToast(retry?.message || "Failed to fetch history after seeding", "error")
+                        }
+                    } else {
+                        setHistoryTxns(txns)
+                        showToast(seedRes?.message || "Failed to seed history", "error")
+                    }
+                } else {
+                    setHistoryTxns(txns)
+                }
+            } else {
+                showToast(response?.message || "Failed to fetch history", "error")
+            }
+        } catch (err) {
+            console.log(err)
+            showToast("Error fetching history", "error")
+        } finally {
+            setHistoryLoading(false)
+        }
+    }
+
+    const baseColumns = [
         {
             field: 'sn',
             headerName: '#',
@@ -266,61 +313,54 @@ const ReportList = () => {
             flex: 1,
             minWidth: 100,
             valueGetter: (value) => moment(value).format('DD-MM-YYYY hh:mm')
-        },
-        {
-            field: 'status',
-            headerName: 'Status',
-            width: 120,
-            renderCell: (params) => {
-                let color = "secondary";
-                if (params.value === "In Review") color = "info";
-                if (params.value === "Approved") color = "success";
-                if (params.value === "Rejected") color = "danger";
-                return (
-                    <div className="d-flex flex-column align-items-center py-2" style={{ lineHeight: '1.2' }}>
-                        <span className={`badge bg-${color}`}>
-                            {params.value || 'Assigned'}
-                        </span>
-                        {params.value === "Rejected" && params.row.remark && (
-                            <small className="text-danger mt-1 text-center" style={{ fontSize: '10px', maxWidth: '100px', wordBreak: 'break-word' }}>
-                                {params.row.remark}
-                            </small>
-                        )}
-                    </div>
-                )
-            }
-        },
-        {
-            field: 'action',
-            headerName: 'Action',
-            width: 150,
-            renderCell: (params) => (
-                <div className="d-flex gap-3 mt-1 justify-content-start align-items-center" style={{ fontSize: "20px" }}>
-                    <img
-                        src={pdf_logo}
-                        alt="PDF"
-                        style={{ cursor: 'pointer', width: '22px', height: '22px' }}
-                        onClick={() => openPrintPopup(params.row)}
-                        title="View Report Preview"
-                    />
-                    {params.row.pdf_url && (
-                        <i className="bx bxs-file-pdf text-danger"
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => window.open(params.row.pdf_url, '_blank')}
-                            title="View Uploaded PDF"
-                        ></i>
-                    )}
-                    {role === "admin" && (
-                        <i className="bx bxs-trash text-danger"
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => handleDelete(params.row._id)}
-                            title="Delete Report"
-                        ></i>
-                    )}
-                </div>
-            )
         }
     ]
+
+    const columns = isPatientHistory
+        ? [
+            ...baseColumns,
+            {
+                field: 'history_action',
+                headerName: 'Action',
+                width: 150,
+                sortable: false,
+                filterable: false,
+                renderCell: (params) => {
+                    const patient = params.row.patient_id || params.row
+                    return (
+                        <Button
+                            color="primary"
+                            size="sm"
+                            className="btn-rounded px-3"
+                            onClick={() => handleHistory(patient)}
+                        >
+                            View History
+                        </Button>
+                    )
+                }
+            }
+        ]
+        : baseColumns
+
+    const historyRows = (() => {
+        let lastCharges = []
+        return (historyTxns || []).map((txn) => {
+            const charges = Array.isArray(txn.charges) ? txn.charges : []
+            const displayCharges = charges.length > 0 ? charges : lastCharges
+            if (charges.length > 0) {
+                lastCharges = charges
+            }
+            const displayTotal = Number(txn.openingBalance || 0) + Number(txn.chargesTotal || 0)
+            return { txn, displayCharges, displayTotal }
+        })
+    })()
+
+    const formatVisitDate = (value) => {
+        if (!value) return '-'
+        const d = new Date(value)
+        if (isNaN(d.getTime())) return '-'
+        return d.toLocaleDateString()
+    }
 
     const renderReport = () => {
         if (!selectedAssignment) return null;
@@ -338,8 +378,7 @@ const ReportList = () => {
             'Patient Name': item.patient_id?.wife?.name || item.patient_id?.name || 'N/A',
             'Husband Name': item.patient_id?.husband?.name || 'N/A',
             'Wife Tests': (item.wife_tests || []).map(t => t.test_code).join(', '),
-            'Husband Tests': (item.husband_tests || []).map(t => t.test_code).join(', '),
-            'Status': item.status || 'Pending'
+            'Husband Tests': (item.husband_tests || []).map(t => t.test_code).join(', ')
         }))
         exportFromJSON({
             data: exportData,
@@ -388,22 +427,27 @@ const ReportList = () => {
                                             )}
                                             <FormGroup className="mb-0 d-flex align-items-center gap-2">
                                                 <Label className="mb-0 text-nowrap">From</Label>
-                                                <Input
-                                                    type="date"
-                                                    bsSize="sm"
-                                                    value={fromDate}
-                                                    onChange={(e) => setFromDate(e.target.value)}
+                                                <Flatpickr
+                                                    className="form-control form-control-sm"
+                                                    value={fromDate || ""}
+                                                    options={{
+                                                        dateFormat: "Y-m-d",
+                                                        maxDate: toDate || null
+                                                    }}
+                                                    onChange={(_, dateStr) => setFromDate(dateStr)}
                                                     style={{ width: '130px' }}
                                                 />
                                             </FormGroup>
                                             <FormGroup className="mb-0 d-flex align-items-center gap-2">
                                                 <Label className="mb-0 text-nowrap">To</Label>
-                                                <Input
-                                                    type="date"
-                                                    bsSize="sm"
-                                                    value={toDate}
-                                                    min={fromDate || undefined}
-                                                    onChange={(e) => setToDate(e.target.value)}
+                                                <Flatpickr
+                                                    className="form-control form-control-sm"
+                                                    value={toDate || ""}
+                                                    options={{
+                                                        dateFormat: "Y-m-d",
+                                                        minDate: fromDate || null
+                                                    }}
+                                                    onChange={(_, dateStr) => setToDate(dateStr)}
                                                     style={{ width: '130px' }}
                                                 />
                                             </FormGroup>
@@ -463,6 +507,54 @@ const ReportList = () => {
                         <i className="bx bx-printer me-1"></i> Print
                     </Button>
                 </ModalFooter>
+            </Modal>
+
+            <Modal isOpen={historyModal} toggle={() => setHistoryModal(!historyModal)} size="lg">
+                <ModalHeader toggle={() => setHistoryModal(!historyModal)}>
+                    {historyPatient?.wife?.name || '-'}&#39;s - Visit History
+                </ModalHeader>
+                <ModalBody>
+                    {historyLoading ? (
+                        <div className="text-center py-4">
+                            <Spinner />
+                        </div>
+                    ) : historyTxns.length === 0 ? (
+                        <div className="text-center text-muted py-4">No previous procedures found.</div>
+                    ) : (
+                        <div className="visit-timeline">
+                            {historyRows.map(({ txn, displayCharges, displayTotal }) => (
+                                <div className="visit-item" key={txn._id}>
+                                    <div className="visit-card">
+                                        <div className="visit-title">Receipt No: {txn.receiptNo || '-'}</div>
+                                        <div className="visit-sub">
+                                            {displayCharges.length === 0
+                                                ? '-'
+                                                : displayCharges
+                                                    // .map((c) => `${c.serviceName || 'Procedure'} x${c.qty || 1}`)
+                                                    .map((c) => `${c.serviceName || 'Procedure'}`)
+                                                    .join(', ')
+                                            }
+                                        </div>
+                                        <div className="visit-amounts">
+                                            <span>Total: {Number(displayTotal || 0).toFixed(2)}</span>
+                                            <span>Paid: {Number(txn.payment || 0).toFixed(2)}</span>
+                                            <span>Closing: {Number(txn.closingBalance || 0).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    <div className="visit-line">
+                                        <span className="visit-dot"></span>
+                                    </div>
+                                    <div className="visit-date">
+                                        <span className="visit-date-pill">
+                                            <i className="bx bx-calendar"></i>
+                                            {formatVisitDate(txn.createdAt)}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </ModalBody>
             </Modal>
         </React.Fragment>
     )
